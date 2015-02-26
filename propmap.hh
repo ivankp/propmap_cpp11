@@ -95,29 +95,9 @@ public:
 private:
   std::unordered_map<key_t,Mapped,__propmap::tuple_hash<key_t>> _map;
   std::tuple<cont_tmpl<Props> ...> _containers;
-  std::tuple<typename cont_tmpl<Props>::iterator ...> _backs;
-
-  template<
-    size_t I = sizeof...(Props) - 1,
-    typename std::enable_if<I!=0>::type* = nullptr>
-  void init_backs() noexcept {
-    std::get<I>(_backs) = std::get<I>(_containers).before_begin();
-    init_backs<I-1>();
-  }
-
-  template<
-    size_t I = sizeof...(Props) - 1,
-    typename std::enable_if<I==0>::type* = nullptr>
-  void init_backs() noexcept {
-    std::get<0>(_backs) = std::get<0>(_containers).before_begin();
-  }
 
   template<typename P>
-  void add_prop(const P& p) {
-    // test(p)
-    cont_t<0>& container = std::get<0>(_containers);
-    std::get<0>(_backs) =
-      container.insert_after( std::get<0>(_backs), p );
+  static inline void container_insert(cont_tmpl<P>& container, const P& p) {
     auto it = container.before_begin();
     bool found = false;
     for (auto& x : container) {
@@ -127,24 +107,23 @@ private:
       }
       ++it;
     }
-    if (!found) container.insert_after( std::get<0>(_backs), p );
+    if (!found) container.insert_after(it,p);
+  }
+
+  template<typename P>
+  void add_prop(const P& p) {
+    container_insert(std::get<0>(_containers), p);
   }
 
   template<typename P, typename... PP>
   void add_prop(const P& p, const PP&... pp) {
-    using num = std::integral_constant<size_t, sizeof...(PP)>;
-    cont_t<num::value>& container = std::get<num::value>(_containers);
-    std::get<num::value>(_backs) =
-      container.insert_after( std::get<num::value>(_backs), p );
+    container_insert(std::get<sizeof...(PP)>(_containers), p);
     add_prop(pp...);
   }
 
 public:
-  // constructor
-  propmap() { init_backs<>(); }
-
   void insert(const Mapped& x, const Props&... props) {
-    add_prop(props...);/
+    add_prop(props...);
     _map.emplace( std::forward_as_tuple(props...), x );
   }
 
