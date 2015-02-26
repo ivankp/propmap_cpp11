@@ -29,14 +29,12 @@ int main(int argc, char **argv)
   cout << "Entries: " << num << endl;
 
   // sort names alphabetically
-  pm.sort<1>();
+  pm.sort<0>();
 
   // print collected data
-  // for (auto& name : pm.prop<0>()) cout << name << endl;
-
-  for (auto& name : pm.prop<1>()) {
+  for (auto& name : pm.prop<0>()) {
     cout << endl << name << ':' << endl;
-    for (auto& id : pm.prop<0>()) {
+    for (auto& id : pm.prop<1>()) {
 
       static pair<double,double> val;
       if ( pm.get(val,name,id) ) {

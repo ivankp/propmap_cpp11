@@ -2,11 +2,8 @@
 #define __propmap_hh__
 
 #include <unordered_map>
-// #include <vector>
 #include <forward_list>
 #include <tuple>
-// #include <stdexcept>
-// #include <sstream>
 
 #include <iostream>
 
@@ -54,22 +51,6 @@ namespace __propmap {
     }
   };
   // ----------------------------------------------------------------
-  /*
-  template<typename T, typename... TT>
-  struct to_str: public to_str<TT...> {
-    to_str(const T& x, const TT&... xx): to_str<TT...>(xx...) {
-      to_str<TT...>::ss << ", " << x;
-    }
-  };
-
-  template<typename T>
-  struct to_str<T> {
-    to_str(const T& x): ss() { ss << x; }
-    std::string str() { return std::move(ss.str()); }
-  protected:
-    std::stringstream ss;
-  };
-  */
 }
 
 // ******************************************************************
@@ -100,7 +81,7 @@ private:
   static inline void container_insert(cont_tmpl<P>& container, const P& p) {
     auto it = container.before_begin();
     bool found = false;
-    for (auto& x : container) {
+    for (const auto& x : container) {
       if (x==p) {
         found = true;
         break;
@@ -112,12 +93,14 @@ private:
 
   template<typename P>
   void add_prop(const P& p) {
-    container_insert(std::get<0>(_containers), p);
+    container_insert(std::get<sizeof...(Props)-1>(_containers), p);
   }
 
   template<typename P, typename... PP>
   void add_prop(const P& p, const PP&... pp) {
-    container_insert(std::get<sizeof...(PP)>(_containers), p);
+    container_insert(
+      std::get<sizeof...(Props)-sizeof...(PP)-1>(_containers), p
+    );
     add_prop(pp...);
   }
 
