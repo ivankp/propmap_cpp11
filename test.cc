@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 {
   // program options
   if (argc!=2) {
-    cout << "Usage: " << argv[0] << "file.dat" << endl;
+    cout << "Usage: " << argv[0] << " file.dat" << endl;
     return 0;
   }
 
