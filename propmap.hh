@@ -92,12 +92,12 @@ private:
   }
 
   template<typename P>
-  void add_prop(const P& p) {
+  inline void add_prop(const P& p) {
     container_insert(std::get<sizeof...(Props)-1>(_containers), p);
   }
 
   template<typename P, typename... PP>
-  void add_prop(const P& p, const PP&... pp) {
+  inline void add_prop(const P& p, const PP&... pp) {
     container_insert(
       std::get<sizeof...(Props)-sizeof...(PP)-1>(_containers), p
     );
@@ -110,11 +110,11 @@ public:
     _map.emplace( std::forward_as_tuple(props...), x );
   }
 
-  template<size_t I> const cont_t<I>& prop() {
+  template<size_t I> const cont_t<I>& prop() const noexcept {
     return std::get<I>(_containers);
   }
 
-  bool get(Mapped& x, const Props&... props) const {
+  bool get(Mapped& x, const Props&... props) const noexcept {
     auto it = _map.find( std::forward_as_tuple(props...) );
     if (it!=_map.end()) {
       x = it->second;
@@ -122,7 +122,7 @@ public:
     } else return false;
   }
 
-  bool get(Mapped const*& x, const Props&... props) const {
+  bool get(Mapped const*& x, const Props&... props) const noexcept {
     auto it = _map.find( std::forward_as_tuple(props...) );
     if (it!=_map.end()) {
       x = &(it->second);
@@ -130,7 +130,7 @@ public:
     } else return false;
   }
 
-  bool get(Mapped*& x, const Props&... props) {
+  bool get(Mapped*& x, const Props&... props) noexcept {
     auto it = _map.find( std::forward_as_tuple(props...) );
     if (it!=_map.end()) {
       x = &(it->second);
@@ -144,10 +144,10 @@ public:
   //  static_assert(sizeof...(I)==sizeof...(Props));
   //}
 
-  template<size_t I> void sort() {
+  template<size_t I> void sort() noexcept {
     std::get<I>(_containers).sort();
   }
-  template<size_t I, class Compare> void sort(Compare comp) {
+  template<size_t I, class Compare> void sort(Compare comp) noexcept {
     std::get<I>(_containers).sort(comp);
   }
 };
