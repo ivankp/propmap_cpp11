@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <forward_list>
 #include <tuple>
-#include <memory>
 
 #include <iostream>
 
@@ -23,32 +22,31 @@ namespace __propmap {
 
   // ----------------------------------------------------------------
   template <typename T>
-  inline void ptr_hash_combine(size_t& seed, const std::shared_ptr<T>& v) noexcept {
-    static std::hash<T> hasher;
-    seed ^= hasher(*v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  inline void hash_combine(size_t& seed, const T& v) noexcept {
+    seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
   }
 
   template <typename Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
-  struct key_hash_impl {
+  struct tuple_hash_impl {
     static void apply(size_t& seed, const Tuple& tuple) noexcept {
-      key_hash_impl<Tuple, Index-1>::apply(seed, tuple);
-      ptr_hash_combine(seed, std::get<Index>(tuple));
+      tuple_hash_impl<Tuple, Index-1>::apply(seed, tuple);
+      hash_combine(seed, std::get<Index>(tuple));
     }
   };
 
   template <typename Tuple>
-  struct key_hash_impl<Tuple,0> {
+  struct tuple_hash_impl<Tuple,0> {
     static void apply(size_t& seed, const Tuple& tuple) noexcept {
-      ptr_hash_combine(seed, std::get<0>(tuple));
+      hash_combine(seed, std::get<0>(tuple));
     }
   };
 
   template<typename Tuple> struct tuple_hash;
   template<typename... T>
-  struct key_hash<std::tuple<T...>> {
+  struct tuple_hash<std::tuple<T...>> {
     size_t operator()(const std::tuple<T...>& tuple) const noexcept {
       size_t seed = 0;
-      key_hash_impl<std::tuple<T...>>::apply(seed, tuple);
+      tuple_hash_impl<std::tuple<T...>>::apply(seed, tuple);
       return seed;
     }
   };
@@ -60,20 +58,12 @@ namespace __propmap {
 template<typename Mapped, typename... Props>
 class propmap {
 public:
-  // property pointer template
-  template<typename P>
-  using ptr_tmpl = std::shared_ptr<P>;
-
   // key tuple type
-  using key_t = std::tuple<ptr_tmpl<Props>...>;
-
-  // property pointer type
-  template<size_t I>
-  using ptr_t = typename std::tuple_element<I, key_t>::type;
+  using key_t = std::tuple<Props...>;
 
   // property type
   template<size_t I>
-  using prop_t = typename ptr_t<I>::element_type;
+  using prop_t = typename std::tuple_element<I, key_t>::type;
 
   // property container template
   template<typename P>
@@ -81,47 +71,43 @@ public:
 
   // property container type
   template<size_t I>
-  using cont_t = cont_tmpl<ptr_t<I>>;
+  using cont_t = cont_tmpl<prop_t<I>>;
 
 private:
-  std::unordered_map<key_t,Mapped,__propmap::key_hash<key_t>> _map;
+  std::unordered_map<key_t,Mapped,__propmap::tuple_hash<key_t>> _map;
   std::tuple<cont_tmpl<Props> ...> _containers;
 
   template<typename P>
-  static inline const ptr_tmpl<P>& container_insert(cont_tmpl<P>& container, const P& p) {
+  static inline void container_insert(cont_tmpl<P>& container, const P& p) {
     auto it = container.before_begin();
     bool found = false;
     for (const auto& x : container) {
-      if ( (*x) == p ) {
+      if (x==p) {
         found = true;
         break;
       }
       ++it;
     }
-    if (!found) it = container.insert_after(it, new P(p));
-    return *it;
+    if (!found) container.insert_after(it,p);
   }
 
   template<typename P>
-  inline void add_prop(key_t& key, const P& p) {
-    std::get<sizeof...(Props)-1>(key) =
-      container_insert(std::get<sizeof...(Props)-1>(_containers), p);
+  inline void add_prop(const P& p) {
+    container_insert(std::get<sizeof...(Props)-1>(_containers), p);
   }
 
   template<typename P, typename... PP>
-  inline void add_prop(key_t& key, const P& p, const PP&... pp) {
-    std::get<sizeof...(Props)-sizeof...(PP)-1>(key) =
-      container_insert(
-        std::get<sizeof...(Props)-sizeof...(PP)-1>(_containers), p
-      );
+  inline void add_prop(const P& p, const PP&... pp) {
+    container_insert(
+      std::get<sizeof...(Props)-sizeof...(PP)-1>(_containers), p
+    );
     add_prop(pp...);
   }
 
 public:
   void insert(const Mapped& x, const Props&... props) {
-    key_t key;
-    add_prop(key, props...);
-    _map.emplace( key, x );
+    add_prop(props...);
+    _map.emplace( std::forward_as_tuple(props...), x );
   }
 
   template<size_t I> const cont_t<I>& prop() const noexcept {
@@ -165,5 +151,6 @@ public:
     std::get<I>(_containers).sort(comp);
   }
 };
+
 
 #endif
