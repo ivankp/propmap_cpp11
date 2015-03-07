@@ -6,19 +6,13 @@
 
 using namespace std;
 
-int main(int argc, char **argv)
+int main()
 {
-  // program options
-  if (argc!=2) {
-    cout << "Usage: " << argv[0] << " file.dat" << endl;
-    return 0;
-  }
-
   // create a map
   propmap<pair<double,double>,string,string> pm;
 
   // read data
-  ifstream dat(argv[1]);
+  ifstream dat("test.dat");
   int num = 0;
   string name, id;
   double a, b;
