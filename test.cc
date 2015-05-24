@@ -1,24 +1,22 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
 
 #include "propmap.hh"
 
 using namespace std;
+using namespace std::chrono;
 
-int main(int argc, char **argv)
+int main()
 {
-  // program options
-  if (argc!=2) {
-    cout << "Usage: " << argv[0] << " file.dat" << endl;
-    return 0;
-  }
+  high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
   // create a map
   propmap<pair<double,double>,string,string> pm;
 
   // read data
-  ifstream dat(argv[1]);
+  ifstream dat("test.dat");
   int num = 0;
   string name, id;
   double a, b;
@@ -44,6 +42,10 @@ int main(int argc, char **argv)
 
     }
   }
+
+  high_resolution_clock::time_point t2 = high_resolution_clock::now();
+  duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+  cout << "\nTime elapsed: " << time_span.count() << " s" << endl;
 
   return 0;
 }
