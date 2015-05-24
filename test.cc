@@ -1,13 +1,17 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
 
 #include "propmap.hh"
 
 using namespace std;
+using namespace std::chrono;
 
 int main()
 {
+  high_resolution_clock::time_point t1 = high_resolution_clock::now();
+
   // create a map
   propmap<pair<double,double>,string,string> pm;
 
@@ -38,6 +42,10 @@ int main()
 
     }
   }
+
+  high_resolution_clock::time_point t2 = high_resolution_clock::now();
+  duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+  cout << "\nTime elapsed: " << time_span.count() << " s" << endl;
 
   return 0;
 }
