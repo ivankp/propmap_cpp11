@@ -1,6 +1,3 @@
-/test
 /*.o
-/data
-/out
-/out.*
-
+/*.out
+/test
