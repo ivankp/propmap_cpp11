@@ -1,7 +1,4 @@
+/*.o
+/*.out
 /test
 /test_alloc
-/*.o
-/data
-/out
-/out.*
-

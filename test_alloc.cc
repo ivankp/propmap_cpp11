@@ -3,6 +3,7 @@
 #include "propmap.hh"
 
 using namespace std;
+using namespace ivanp;
 
 struct foo {
   int i, x;
@@ -21,7 +22,7 @@ struct foo {
 
 namespace std {
   template<> struct hash<foo> {
-    size_t operator()(const foo& f) {
+    size_t operator()(const foo& f) const {
       return hash<int>()(f.x);
     }
   };
