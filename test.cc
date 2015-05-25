@@ -16,11 +16,11 @@ int main()
   propmap<pair<double,double>,string,string> pm;
 
   // read data
-  ifstream dat("test.dat");
+  //ifstream dat("test5.dat");
   int num = 0;
   string name, id;
   double a, b;
-  while (dat >> name >> id >> a >> b) {
+  while (cin >> name >> id >> a >> b) {
     pm.insert(make_pair(a,b),name,id);
     ++num;
   }
