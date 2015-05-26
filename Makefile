@@ -2,7 +2,7 @@ CFLAGS := -std=c++11 -Wall -O3
 
 .PHONY: all clean
 
-EXE := test
+EXE := test test_ptr
 
 all: $(EXE)
 
