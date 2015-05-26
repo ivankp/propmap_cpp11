@@ -1,5 +1,5 @@
-#ifndef __propmap_hh__
-#define __propmap_hh__
+#ifndef ivanp_propmap_hh
+#define ivanp_propmap_hh
 
 #include <unordered_map>
 #include <forward_list>
@@ -10,56 +10,44 @@
 #define test(var) \
   std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
 
-namespace __propmap {
-
-  // Hashing code between ---- from boost
-  // Reciprocal of the golden ratio helps spread entropy
-  //     and handles duplicates.
-  // See Mike Seymour in magic-numbers-in-boosthash-combine:
-  //     http://stackoverflow.com/questions/4948780
-  // Adopted from:
-  //     http://stackoverflow.com/questions/7110301
-
-  // ----------------------------------------------------------------
-  template <typename T>
-  inline void hash_combine(size_t& seed, const T& v) noexcept {
-    seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-  }
-
-  template <typename Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
-  struct tuple_hash_impl {
-    static void apply(size_t& seed, const Tuple& tuple) noexcept {
-      tuple_hash_impl<Tuple, Index-1>::apply(seed, tuple);
-      hash_combine(seed, std::get<Index>(tuple));
-    }
-  };
-
-  template <typename Tuple>
-  struct tuple_hash_impl<Tuple,0> {
-    static void apply(size_t& seed, const Tuple& tuple) noexcept {
-      hash_combine(seed, std::get<0>(tuple));
-    }
-  };
-
-  template<typename Tuple> struct tuple_hash;
-  template<typename... T>
-  struct tuple_hash<std::tuple<T...>> {
-    size_t operator()(const std::tuple<T...>& tuple) const noexcept {
-      size_t seed = 0;
-      tuple_hash_impl<std::tuple<T...>>::apply(seed, tuple);
-      return seed;
-    }
-  };
-  // ----------------------------------------------------------------
-}
-
-// ******************************************************************
+namespace ivanp {
 
 template<typename Mapped, typename... Props>
 class propmap {
-public:
+
+  // map defs and functions -----------------------------------------
+
   // key tuple type
   using key_t = std::tuple<Props...>;
+
+  // tupple hashing from boost (functional/hash):
+  // see http://www.boost.org/doc/libs/1_35_0/doc/html/hash/combine.html
+  // http://stackoverflow.com/questions/4948780
+  // http://stackoverflow.com/questions/7110301
+
+  template<typename T>
+  static inline void hash_combine(size_t& seed, const T& v) noexcept {
+    seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  }
+
+  template <size_t I, typename std::enable_if<I>::type * = nullptr>
+  static inline void key_hash_impl(size_t& seed, const key_t& key) noexcept {
+    hash_combine(seed, std::get<I>(key) );
+    key_hash_impl<I-1>(seed, key);
+  }
+
+  template <size_t I, typename std::enable_if<!I>::type * = nullptr>
+  static inline void key_hash_impl(size_t& seed, const key_t& key) noexcept {
+    hash_combine(seed, std::get<0>(key) );
+  }
+
+  struct key_hash {
+    size_t operator()(const key_t& key) const noexcept {
+      size_t seed = 0;
+      key_hash_impl<sizeof...(Props)-1>(seed, key);
+      return seed;
+    }
+  };
 
   // property type
   template<size_t I>
@@ -74,8 +62,8 @@ public:
   using cont_t = cont_tmpl<prop_t<I>>;
 
 private:
-  std::unordered_map<key_t,Mapped,__propmap::tuple_hash<key_t>> _map;
-  std::tuple<cont_tmpl<Props> ...> _containers;
+  std::unordered_map<key_t,Mapped,key_hash> map;
+  std::tuple<cont_tmpl<Props> ...> lists;
 
   template<typename P>
   static inline void container_insert(cont_tmpl<P>& container, const P& p) {
@@ -93,13 +81,13 @@ private:
 
   template<typename P>
   inline void add_prop(const P& p) {
-    container_insert(std::get<sizeof...(Props)-1>(_containers), p);
+    container_insert(std::get<sizeof...(Props)-1>(lists), p);
   }
 
   template<typename P, typename... PP>
   inline void add_prop(const P& p, const PP&... pp) {
     container_insert(
-      std::get<sizeof...(Props)-sizeof...(PP)-1>(_containers), p
+      std::get<sizeof...(Props)-sizeof...(PP)-1>(lists), p
     );
     add_prop(pp...);
   }
@@ -107,50 +95,29 @@ private:
 public:
   void insert(const Mapped& x, const Props&... props) {
     add_prop(props...);
-    _map.emplace( std::forward_as_tuple(props...), x );
+    map.emplace( std::tie(props...), x );
   }
 
   template<size_t I> const cont_t<I>& prop() const noexcept {
-    return std::get<I>(_containers);
+    return std::get<I>(lists);
   }
 
   bool get(Mapped& x, const Props&... props) const noexcept {
-    auto it = _map.find( std::forward_as_tuple(props...) );
-    if (it!=_map.end()) {
+    auto it = map.find( std::tie(props...) );
+    if (it!=map.end()) {
       x = it->second;
       return true;
     } else return false;
   }
 
-  bool get(Mapped const*& x, const Props&... props) const noexcept {
-    auto it = _map.find( std::forward_as_tuple(props...) );
-    if (it!=_map.end()) {
-      x = &(it->second);
-      return true;
-    } else return false;
-  }
-
-  bool get(Mapped*& x, const Props&... props) noexcept {
-    auto it = _map.find( std::forward_as_tuple(props...) );
-    if (it!=_map.end()) {
-      x = &(it->second);
-      return true;
-    } else return false;
-  }
-
-  // want to return vectors of vectors
-  //template<size_t... I>
-  //void optimize() {
-  //  static_assert(sizeof...(I)==sizeof...(Props));
-  //}
-
   template<size_t I> void sort() noexcept {
-    std::get<I>(_containers).sort();
+    std::get<I>(lists).sort();
   }
   template<size_t I, class Compare> void sort(Compare comp) noexcept {
-    std::get<I>(_containers).sort(comp);
+    std::get<I>(lists).sort(comp);
   }
 };
 
+} // end namespace ivanp
 
 #endif
