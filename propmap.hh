@@ -84,9 +84,9 @@ private:
     for (const auto& x : container) {
       if (x==p) {
         found = true;
+        ++it;
         break;
       }
-      ++it;
     }
     if (!found) container.insert_after(it,p);
   }
