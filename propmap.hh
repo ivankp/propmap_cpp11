@@ -14,11 +14,28 @@ namespace ivanp {
 
 template<typename Mapped, typename... Props>
 class propmap {
+public:
 
-  // map defs and functions -----------------------------------------
+  // types ----------------------------------------------------------
 
   // key tuple type
   using key_t = std::tuple<Props...>;
+
+  // property type
+  template<size_t I>
+  using prop_t = typename std::tuple_element<I, key_t>::type;
+
+  // property list template
+  template<typename P>
+  using list_tmpl = std::forward_list<P>;
+
+  // property list type
+  template<size_t I>
+  using list_t = list_tmpl<prop_t<I>>;
+
+private:
+
+  // hashing --------------------------------------------------------
 
   // tupple hashing from boost (functional/hash):
   // see http://www.boost.org/doc/libs/1_35_0/doc/html/hash/combine.html
@@ -49,56 +66,49 @@ class propmap {
     }
   };
 
-  // property type
-  template<size_t I>
-  using prop_t = typename std::tuple_element<I, key_t>::type;
+  // member containers ----------------------------------------------
 
-  // property container template
-  template<typename P>
-  using cont_tmpl = std::forward_list<P>;
-
-  // property container type
-  template<size_t I>
-  using cont_t = cont_tmpl<prop_t<I>>;
-
-private:
   std::unordered_map<key_t,Mapped,key_hash> map;
-  std::tuple<cont_tmpl<Props> ...> lists;
+  std::tuple<list_tmpl<Props>...> lists;
+
+  // private functions ----------------------------------------------
 
   template<typename P>
-  static inline void container_insert(cont_tmpl<P>& container, const P& p) {
-    auto it = container.before_begin();
+  static inline void insert_one(list_tmpl<P>& list, const P& p) {
+    auto it = list.before_begin();
     bool found = false;
-    for (const auto& x : container) {
+    for (const auto& x : list) {
       if (x==p) {
         found = true;
         break;
       }
       ++it;
     }
-    if (!found) container.insert_after(it,p);
+    if (!found) list.insert_after(it,p);
   }
 
   template<typename P>
-  inline void add_prop(const P& p) {
-    container_insert(std::get<sizeof...(Props)-1>(lists), p);
+  inline void insert_all(const P& p) {
+    insert_one(std::get<sizeof...(Props)-1>(lists), p);
   }
 
   template<typename P, typename... PP>
-  inline void add_prop(const P& p, const PP&... pp) {
-    container_insert(
+  inline void insert_all(const P& p, const PP&... pp) {
+    insert_one(
       std::get<sizeof...(Props)-sizeof...(PP)-1>(lists), p
     );
-    add_prop(pp...);
+    insert_all(pp...);
   }
+
+  // ----------------------------------------------------------------
 
 public:
   void insert(const Mapped& x, const Props&... props) {
-    add_prop(props...);
+    insert_all(props...);
     map.emplace( std::tie(props...), x );
   }
 
-  template<size_t I> const cont_t<I>& prop() const noexcept {
+  template<size_t I> const list_t<I>& prop() const noexcept {
     return std::get<I>(lists);
   }
 
