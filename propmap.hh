@@ -1,14 +1,17 @@
-#ifndef __propmap_hh__
-#define __propmap_hh__
+#ifndef ivanp_propmap_hh
+#define ivanp_propmap_hh
 
-#include <unordered_map>
+#include <unorderedmap>
 #include <forward_list>
+#include <memory>
 #include <tuple>
 
 #include <iostream>
 
 #define test(var) \
   std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
+
+namespace ivanp {
 
 namespace __propmap {
 
@@ -22,8 +25,8 @@ namespace __propmap {
 
   // ----------------------------------------------------------------
   template <typename T>
-  inline void hash_combine(size_t& seed, const T& v) noexcept {
-    seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  inline void hash_combine(size_t& seed, const T* p) noexcept {
+    seed ^= reinterpret_cast<uintptr_t>(p) + 0x9e3779b9 + (seed<<6) + (seed>>2);
   }
 
   template <typename Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
@@ -59,98 +62,88 @@ template<typename Mapped, typename... Props>
 class propmap {
 public:
   // key tuple type
-  using key_t = std::tuple<Props...>;
+  using key_t = std::tuple<const Props*...>;
 
   // property type
   template<size_t I>
-  using prop_t = typename std::tuple_element<I, key_t>::type;
+  using prop_t = typename std::tuple_element<I, std::tuple<Props...>>::type;
+
+  // pointer template
+  template<typename P>
+  using ptr = std::shared_ptr<const P>;
 
   // property container template
   template<typename P>
-  using cont_tmpl = std::forward_list<P>;
+  using cont_tmpl = std::forward_list<ptr<P>>;
 
   // property container type
   template<size_t I>
   using cont_t = cont_tmpl<prop_t<I>>;
 
 private:
-  std::unordered_map<key_t,Mapped,__propmap::tuple_hash<key_t>> _map;
-  std::tuple<cont_tmpl<Props> ...> _containers;
+  std::unorderedmap<key_t,Mapped,__propmap::tuple_hash<key_t>> map;
+  std::tuple<cont_tmpl<Props> ...> containers;
 
-  template<typename P>
-  static inline void container_insert(cont_tmpl<P>& container, const P& p) {
+  template<typename T>
+
+
+  template<typename C, typename P>
+  static inline void insert_single(C& container, const P& p) {
     auto it = container.before_begin();
     bool found = false;
     for (const auto& x : container) {
-      if (x==p) {
+      if (*x==*p) {
         found = true;
+        ++it;
         break;
       }
-      ++it;
     }
-    if (!found) container.insert_after(it,p);
+    if (!found) container.emplace_after(it,p);
+    return &(*p);
   }
 
   template<typename P>
-  inline void add_prop(const P& p) {
-    container_insert(std::get<sizeof...(Props)-1>(_containers), p);
+  inline void insert_all(key_t& key, const P& p) {
+    std::get<sizeof...(Props)-1>(key) = insert_single(
+      std::get<sizeof...(Props)-1>(containers), p
+    );
   }
 
   template<typename P, typename... PP>
-  inline void add_prop(const P& p, const PP&... pp) {
-    container_insert(
-      std::get<sizeof...(Props)-sizeof...(PP)-1>(_containers), p
+  inline void insert_all(key_t& key, const P& p, const PP&... pp) {
+    std::get<sizeof...(Props)-sizeof...(PP)-1>(key) = insert_single(
+      std::get<sizeof...(Props)-sizeof...(PP)-1>(containers), p
     );
-    add_prop(pp...);
+    insert_all(key,pp...);
   }
 
 public:
   void insert(const Mapped& x, const Props&... props) {
-    add_prop(props...);
-    _map.emplace( std::forward_as_tuple(props...), x );
+    key_t key;
+    insert_all(key, props...);
+    map.emplace(key, x);
   }
 
   template<size_t I> const cont_t<I>& prop() const noexcept {
-    return std::get<I>(_containers);
+    return std::get<I>(containers);
   }
 
-  bool get(Mapped& x, const Props&... props) const noexcept {
-    auto it = _map.find( std::forward_as_tuple(props...) );
-    if (it!=_map.end()) {
+  bool get(Mapped& x, const Props*... props) const noexcept {
+    auto it = map.find( std::forward_as_tuple(props...) );
+    if (it!=map.end()) {
       x = it->second;
       return true;
     } else return false;
   }
 
-  bool get(Mapped const*& x, const Props&... props) const noexcept {
-    auto it = _map.find( std::forward_as_tuple(props...) );
-    if (it!=_map.end()) {
-      x = &(it->second);
-      return true;
-    } else return false;
-  }
-
-  bool get(Mapped*& x, const Props&... props) noexcept {
-    auto it = _map.find( std::forward_as_tuple(props...) );
-    if (it!=_map.end()) {
-      x = &(it->second);
-      return true;
-    } else return false;
-  }
-
-  // want to return vectors of vectors
-  //template<size_t... I>
-  //void optimize() {
-  //  static_assert(sizeof...(I)==sizeof...(Props));
-  //}
-
   template<size_t I> void sort() noexcept {
-    std::get<I>(_containers).sort();
+    std::get<I>(containers).sort();
   }
   template<size_t I, class Compare> void sort(Compare comp) noexcept {
-    std::get<I>(_containers).sort(comp);
+    std::get<I>(containers).sort(comp);
   }
 };
 
+} // end namespace ivanp
 
 #endif
