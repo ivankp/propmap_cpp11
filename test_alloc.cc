@@ -3,6 +3,7 @@
 #include "propmap.hh"
 
 using namespace std;
+using namespace ivanp;
 
 struct foo {
   int i, x;
@@ -17,15 +18,8 @@ struct foo {
   }
 
   bool operator<(foo other) const { return x < other.x; }
+  bool operator==(const foo& other) const { return x == other.x; }
 };
-
-namespace std {
-  template<> struct hash<foo> {
-    size_t operator()(const foo& f) {
-      return hash<int>()(f.x);
-    }
-  };
-}
 
 int main()
 {

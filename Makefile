@@ -1,4 +1,4 @@
-CFLAGS := -std=c++11 -Wall -O3
+CFLAGS := -std=c++11 -Wall -g
 
 .PHONY: all clean
 
