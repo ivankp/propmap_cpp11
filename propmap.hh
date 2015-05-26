@@ -2,9 +2,9 @@
 #define propmap_hh_
 
 #include <unordered_map>
-#include <unordered_set>
 #include <tuple>
 #include <list>
+#include <set>
 
 #include <iostream>
 
@@ -53,15 +53,23 @@ class propmap {
       return reinterpret_cast<uintptr_t>(p);
     }
   };
+  /*
   template<typename P> struct set_eq {
     bool operator()(const P* a, const P* b) const noexcept {
       std::cout << "*a["<<*a<<"] == *b["<<*b<<"]" << " = " << (*a == *b) << std::endl;
       return *a == *b;
     }
   };
+  */
+  template<typename P> struct set_less {
+    bool operator()(const P* a, const P* b) const noexcept {
+      return *a < *b;
+    }
+  };
 
   template<typename P>
-  using set_tmpl = std::unordered_set<const P*, set_hash<P>, set_eq<P>>;
+  using set_tmpl = std::set<const P*, set_less<P>>;
+  // using set_tmpl = std::unordered_set<const P*, set_hash<P>, set_eq<P>>;
 
   template<size_t I> using set_t = set_tmpl<prop_t<I>>;
 
@@ -81,13 +89,10 @@ class propmap {
 
   template<size_t I>
   inline const prop_t<I>* insert_single(const prop_t<I>& p) {
-    test(p)
-    test(&p)
     auto& set = std::get<I>(sets);
     auto it = set.find(&p);
 
     if (it==set.end()) {
-      test((it==set.end()))
       std::get<I>(lists).push_back(p);
       it = set.insert(&std::get<I>(lists).back()).first;
     }
