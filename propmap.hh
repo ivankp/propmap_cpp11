@@ -5,11 +5,6 @@
 #include <forward_list>
 #include <tuple>
 
-#include <iostream>
-
-#define test(var) \
-  std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
-
 namespace ivanp {
 
 template<typename Mapped, typename... Props>
